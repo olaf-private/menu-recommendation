@@ -299,11 +299,14 @@ const MapView = () => {
                         지도 탐색 후 '주변 음식점 찾기'를 눌러보세요.
                     </div>
                 )}
+                {restaurants.map((place) => (
+                    <RestaurantCard
+                        key={place.place_id}
+                        place={place}
+                        isSelected={selectedPlace?.place_id === place.place_id}
+                        onClick={() => handleMarkerClick(place)}
+                    />
                 ))}
-                {/* Version Display */}
-                <div style={{ textAlign: 'center', marginTop: '2rem', paddingBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>
-                    v{__APP_VERSION__}
-                </div>
             </div>
         </div>
     );

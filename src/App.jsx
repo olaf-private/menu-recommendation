@@ -22,6 +22,19 @@ const Home = () => (
         <h1 className="text-gradient" style={{ fontSize: '1.25rem', margin: 0 }}>Menu Recommendation</h1>
       </div>
     </div>
+
+    {/* Version Footer */}
+    <div style={{
+      position: 'absolute',
+      bottom: '10px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 5,
+      opacity: 0.6,
+      pointerEvents: 'none'
+    }}>
+      <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>v{__APP_VERSION__}</span>
+    </div>
   </div>
 );
 
