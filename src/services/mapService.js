@@ -66,3 +66,35 @@ export const getPlaceDetails = (mapInstance, placeId) => {
         });
     });
 };
+
+/**
+ * Calculate route between two points
+ * @param {google.maps.LatLngLiteral} origin 
+ * @param {google.maps.LatLngLiteral} destination 
+ * @returns {Promise<google.maps.DirectionsResult>}
+ */
+export const calculateRoute = (origin, destination) => {
+    return new Promise((resolve, reject) => {
+        if (!origin || !destination) {
+            reject("Origin or destination missing");
+            return;
+        }
+
+        const directionsService = new window.google.maps.DirectionsService();
+
+        directionsService.route(
+            {
+                origin: origin,
+                destination: destination,
+                travelMode: window.google.maps.TravelMode.WALKING,
+            },
+            (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK) {
+                    resolve(result);
+                } else {
+                    reject(status);
+                }
+            }
+        );
+    });
+};

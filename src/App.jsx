@@ -26,14 +26,19 @@ const Home = () => (
     {/* Version Footer */}
     <div style={{
       position: 'absolute',
-      bottom: '10px',
+      bottom: '30px',
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: 5,
-      opacity: 0.6,
+      zIndex: 100,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      padding: '8px 16px',
+      borderRadius: '24px',
+      border: '1px solid rgba(255, 255, 255, 0.3)',
+      backdropFilter: 'blur(4px)',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
       pointerEvents: 'none'
     }}>
-      <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>v{__APP_VERSION__}</span>
+      <span style={{ fontSize: '1rem', color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>v{__APP_VERSION__}</span>
     </div>
   </div>
 );

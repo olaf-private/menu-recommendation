@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { MapPin, Navigation, Search, List } from 'lucide-react';
-import { searchNearbyRestaurants } from '../services/mapService';
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { MapPin, Navigation, Search, List, X } from 'lucide-react';
+import { searchNearbyRestaurants, calculateRoute } from '../services/mapService';
 import RestaurantCard from './RestaurantCard';
 import '../styles/index.css';
 
@@ -104,6 +104,8 @@ const MapView = () => {
     const [selectedPlace, setSelectedPlace] = useState(null);
     const [isListVisible, setIsListVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [directionsResponse, setDirectionsResponse] = useState(null);
+    const [routeInfo, setRouteInfo] = useState(null);
 
     const mapRef = useRef(null);
 
@@ -141,12 +143,21 @@ const MapView = () => {
         if (!map || !center) return;
 
         setIsLoading(true);
+        setDirectionsResponse(null); // Clear previous route
+        setRouteInfo(null);
         try {
             const results = await searchNearbyRestaurants(map, center);
             setRestaurants(results);
             setIsListVisible(true);
         } catch (error) {
             console.error("Search failed:", error);
+            // Translate error codes for better UX
+            let errorMsg = "주변 음식점을 찾을 수 없습니다.";
+            if (error === 'ZERO_RESULTS') errorMsg = "주변에 음식점이 없습니다.";
+            else if (error === 'REQUEST_DENIED' || error === 'OVER_QUERY_LIMIT') errorMsg = `API 오류 (${error}). 관리자에게 문의하세요.`;
+            else errorMsg += ` (${error})`;
+
+            alert(errorMsg);
         } finally {
             setIsLoading(false);
         }
@@ -164,6 +175,46 @@ const MapView = () => {
         setSelectedPlace(place);
         setIsListVisible(true);
         map.panTo(place.geometry.location);
+    };
+
+    const handleGetDirections = async (place) => {
+        if (!myLocation || !place) return;
+
+        setIsLoading(true);
+        try {
+            const result = await calculateRoute(myLocation, place.geometry.location);
+            setDirectionsResponse(result);
+
+            // Extract info
+            const route = result.routes[0].legs[0];
+            setRouteInfo({
+                distance: route.distance.text,
+                duration: route.duration.text
+            });
+
+            setIsListVisible(false); // Hide list to show map route
+        } catch (error) {
+            console.error("Directions failed:", error);
+            let errorMsg = "경로를 찾을 수 없습니다.";
+            if (error === 'ZERO_RESULTS') errorMsg = "경로를 찾을 수 없습니다 (너무 멀거나 경로 없음).";
+            else if (error === 'REQUEST_DENIED') errorMsg = "API 권한 오류입니다. (Directions API)";
+
+            alert(`${errorMsg}\n상세: ${error}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCardAction = (event) => {
+        if (event.action === 'directions') {
+            handleGetDirections(event.place);
+        }
+    };
+
+    const clearRoute = () => {
+        setDirectionsResponse(null);
+        setRouteInfo(null);
+        handleRecenter();
     };
 
     if (!isLoaded) return <div className="glass-panel" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Maps...</div>;
@@ -200,13 +251,13 @@ const MapView = () => {
                 )}
 
                 {/* Restaurant Markers */}
-                {restaurants.map((place) => (
+                {!directionsResponse && restaurants.map((place) => (
                     <Marker
                         key={place.place_id}
                         position={place.geometry.location}
                         onClick={() => handleMarkerClick(place)}
                         icon={{
-                            path: window.google.maps.SymbolPath.CIRCLE, // Simplified marker for performance
+                            path: window.google.maps.SymbolPath.CIRCLE,
                             scale: 6,
                             fillColor: selectedPlace?.place_id === place.place_id ? '#f59e0b' : '#ef4444',
                             fillOpacity: 1,
@@ -215,26 +266,72 @@ const MapView = () => {
                         }}
                     />
                 ))}
+
+                {/* Directions Renderer */}
+                {directionsResponse && (
+                    <DirectionsRenderer
+                        options={{
+                            directions: directionsResponse,
+                            suppressMarkers: false, // Show markers A/B
+                            polylineOptions: {
+                                strokeColor: "#f59e0b",
+                                strokeWeight: 5,
+                                strokeOpacity: 0.8
+                            }
+                        }}
+                    />
+                )}
             </GoogleMap>
 
-            {/* Floating Action Button for Search */}
-            <div style={{
-                position: 'absolute',
-                top: '80px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 10,
-                display: 'flex',
-                gap: '10px'
-            }}>
-                <button
-                    onClick={handleSearchNearby}
-                    className="btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', boxShadow: 'var(--shadow-lg)' }}
-                >
-                    {isLoading ? 'Searching...' : <><Search size={18} style={{ marginRight: '6px' }} /> 주변 음식점 찾기</>}
-                </button>
-            </div>
+            {/* Route Info Overlay */}
+            {routeInfo && (
+                <div className="glass-panel" style={{
+                    position: 'absolute',
+                    top: '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 20,
+                    padding: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    minWidth: '200px'
+                }}>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                        {routeInfo.duration}
+                    </span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>
+                        도보 {routeInfo.distance}
+                    </span>
+                    <button
+                        onClick={clearRoute}
+                        style={{ marginTop: '0.5rem', color: 'var(--color-text-main)', fontSize: '0.8rem', textDecoration: 'underline' }}
+                    >
+                        경로 취소
+                    </button>
+                </div>
+            )}
+
+            {/* Floating Action Button for Search (Hidden if Route Active) */}
+            {!directionsResponse && (
+                <div style={{
+                    position: 'absolute',
+                    top: '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 10,
+                    display: 'flex',
+                    gap: '10px'
+                }}>
+                    <button
+                        onClick={handleSearchNearby}
+                        className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', boxShadow: 'var(--shadow-lg)' }}
+                    >
+                        {isLoading ? 'Searching...' : <><Search size={18} style={{ marginRight: '6px' }} /> 주변 음식점 찾기</>}
+                    </button>
+                </div>
+            )}
 
             {/* Recenter Button */}
             <button
@@ -259,26 +356,28 @@ const MapView = () => {
             </button>
 
             {/* List Toggle Button (Mobile) */}
-            <button
-                onClick={() => setIsListVisible(!isListVisible)}
-                className="glass-panel"
-                style={{
-                    position: 'absolute',
-                    bottom: '100px',
-                    left: '20px',
-                    width: '50px',
-                    height: '50px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '50%',
-                    color: 'var(--color-primary)',
-                    cursor: 'pointer',
-                    zIndex: 10
-                }}
-            >
-                <List size={24} />
-            </button>
+            {!directionsResponse && (
+                <button
+                    onClick={() => setIsListVisible(!isListVisible)}
+                    className="glass-panel"
+                    style={{
+                        position: 'absolute',
+                        bottom: '100px',
+                        left: '20px',
+                        width: '50px',
+                        height: '50px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%',
+                        color: 'var(--color-primary)',
+                        cursor: 'pointer',
+                        zIndex: 10
+                    }}
+                >
+                    <List size={24} />
+                </button>
+            )}
 
             {/* Restaurant List Overlay (Drawer-like) */}
             <div className={`glass-panel`} style={{
@@ -294,6 +393,15 @@ const MapView = () => {
                 zIndex: 20,
                 padding: isListVisible ? '1rem' : '0'
             }}>
+                {isListVisible && (
+                    <button
+                        onClick={() => setIsListVisible(false)}
+                        style={{ position: 'absolute', top: '10px', right: '10px', color: 'var(--color-text-muted)' }}
+                    >
+                        <X size={20} />
+                    </button>
+                )}
+
                 {restaurants.length === 0 && !isLoading && (
                     <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '2rem' }}>
                         지도 탐색 후 '주변 음식점 찾기'를 눌러보세요.
@@ -304,7 +412,14 @@ const MapView = () => {
                         key={place.place_id}
                         place={place}
                         isSelected={selectedPlace?.place_id === place.place_id}
-                        onClick={() => handleMarkerClick(place)}
+                        onClick={(e) => {
+                            // If event has action (directions), handle it, else select marker
+                            if (e?.action === 'directions') {
+                                handleCardAction(e);
+                            } else {
+                                handleMarkerClick(place);
+                            }
+                        }}
                     />
                 ))}
             </div>

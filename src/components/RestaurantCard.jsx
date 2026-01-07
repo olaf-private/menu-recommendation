@@ -68,6 +68,28 @@ const RestaurantCard = ({ place, onClick, isSelected }) => {
                         {place.vicinity}
                     </span>
                 </div>
+
+                {isSelected && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onClick) onClick({ action: 'directions', place });
+                        }}
+                        className="btn-primary"
+                        style={{
+                            marginTop: '0.75rem',
+                            width: '100%',
+                            fontSize: '0.9rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.5rem'
+                        }}
+                    >
+                        <Clock size={16} style={{ marginRight: '6px' }} />
+                        도보 경로 찾기
+                    </button>
+                )}
             </div>
         </div>
     );
