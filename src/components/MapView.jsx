@@ -88,11 +88,13 @@ const mapOptions = {
     ],
 };
 
+const LIBRARIES = ['places'];
+
 const MapView = () => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-        libraries: ['places']
+        libraries: LIBRARIES
     });
 
     const [map, setMap] = useState(null);
