@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { MapPin, list, History } from 'lucide-react';
-import '../styles/index.css';
+import { MapPin, List, History } from 'lucide-react';
+import './styles/index.css';
 
 import MapView from './components/MapView';
 
