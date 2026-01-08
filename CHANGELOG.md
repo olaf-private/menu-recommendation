@@ -2,6 +2,21 @@
 
 All notable changes to the **Menu Recommendation** project will be documented in this file.
 
+## [v0.0.36] - 2026-01-08
+### Added
+- **UI UX Improvements**: 
+    - **Category Counts**: Displays the number of restaurants for each category toggle (e.g., "Korean (5)").
+    - **Sort Buttons**: Replaced text links with touch-friendly segmented buttons for better usability.
+
+## [v0.0.35] - 2026-01-08
+### Fixed
+- **Category Mismatch**: Unified 'CHINESE_ASIAN' logic to 'ASIAN' to resolve ID mismatch that caused empty filter results.
+- **GitHub Actions**: Configured CI/CD pipeline for automated Firebase deployment on push.
+
+## [v0.0.34] - 2026-01-08
+### Fixed
+- **Distance Calculation**: Enforced distance calculation before filtering to ensure distance is always displayed on cards.
+
 ## [v0.0.33] - 2026-01-08
 ### Added
 - **Distance Display**: Added real-time distance calculation (e.g., "350m", "1.2km") next to the restaurant name in the list view.
