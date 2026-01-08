@@ -60,21 +60,7 @@ const Home = ({ user }) => (
   <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
     <MapView user={user} />
 
-    {/* Header */}
-    <div style={{
-      position: 'absolute',
-      top: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 10,
-      width: '90%',
-      maxWidth: '500px'
-    }}>
-      <div className="glass-panel" style={{ padding: '0.75rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <h1 className="text-gradient" style={{ fontSize: '1.25rem', margin: 0 }}>Menu Recommendation</h1>
-        {user && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Welcome, {user.displayName}</span>}
-      </div>
-    </div>
+    {/* Header removed and moved to MapView for unified layout */}
 
     {/* Version Footer - High Visibility Mode */}
     <div style={{

@@ -512,37 +512,46 @@ const MapView = (props) => {
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-            {/* Region Search Box */}
+            {/* Unified Top Search & Header Panel */}
             <div style={{
                 position: 'absolute',
-                top: '90px', // Below the main header title (approx)
+                top: '20px',
                 left: '50%',
                 transform: 'translateX(-50%)',
-                width: '85%',
-                maxWidth: '400px',
-                zIndex: 10
+                width: '90%',
+                maxWidth: '500px',
+                zIndex: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
             }}>
-                <div style={{ position: 'relative', width: '100%' }}>
-                    <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }}>
-                        <Search size={18} />
+                <div className="glass-panel" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Title Row */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <h1 className="text-gradient" style={{ fontSize: '1.2rem', margin: 0, fontWeight: '800' }}>Menu Recommendation</h1>
                     </div>
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="지역 또는 맛집 검색"
-                        style={{
-                            width: '100%',
-                            padding: '12px 12px 12px 40px',
-                            borderRadius: '25px',
-                            border: 'none',
-                            outline: 'none',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                            background: 'rgba(30, 30, 30, 0.85)',
-                            backdropFilter: 'blur(8px)',
-                            color: 'white',
-                            fontSize: '0.95rem'
-                        }}
-                    />
+
+                    {/* Search Box Row */}
+                    <div style={{ position: 'relative', width: '100%' }}>
+                        <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }}>
+                            <Search size={18} />
+                        </div>
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="지역 또는 맛집 검색"
+                            style={{
+                                width: '100%',
+                                padding: '10px 10px 10px 38px',
+                                borderRadius: '12px',
+                                border: '1px solid var(--glass-border)',
+                                outline: 'none',
+                                background: 'rgba(0, 0, 0, 0.2)',
+                                color: 'var(--color-text-main)',
+                                fontSize: '0.9rem'
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -663,7 +672,7 @@ const MapView = (props) => {
             {!directionsResponse && (
                 <div style={{
                     position: 'absolute',
-                    top: '140px', // Moved down to avoid header overlap
+                    top: '170px', // Adjusted for larger unified header
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 10,
