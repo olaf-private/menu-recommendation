@@ -519,39 +519,52 @@ const MapView = (props) => {
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: '90%',
-                maxWidth: '500px',
+                maxWidth: '400px',
                 zIndex: 10,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px'
+                alignItems: 'center',
+                gap: '8px'
             }}>
-                <div className="glass-panel" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {/* Title Row */}
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <h1 className="text-gradient" style={{ fontSize: '1.2rem', margin: 0, fontWeight: '800' }}>Menu Recommendation</h1>
-                    </div>
+                {/* Title - Standalone & Shadowed */}
+                <h1 className="text-gradient" style={{
+                    fontSize: '1.2rem',
+                    margin: 0,
+                    fontWeight: '800',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                    pointerEvents: 'none'
+                }}>
+                    Menu Recommendation
+                </h1>
 
-                    {/* Search Box Row */}
-                    <div style={{ position: 'relative', width: '100%' }}>
-                        <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }}>
-                            <Search size={18} />
-                        </div>
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="지역 또는 맛집 검색"
-                            style={{
-                                width: '100%',
-                                padding: '10px 10px 10px 38px',
-                                borderRadius: '12px',
-                                border: '1px solid var(--glass-border)',
-                                outline: 'none',
-                                background: 'rgba(0, 0, 0, 0.2)',
-                                color: 'var(--color-text-main)',
-                                fontSize: '0.9rem'
-                            }}
-                        />
+                {/* Floating Search Pill */}
+                <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    borderRadius: '50px'
+                }}>
+                    <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }}>
+                        <Search size={20} />
                     </div>
+                    <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="지역 또는 맛집 검색"
+                        style={{
+                            width: '100%',
+                            padding: '12px 12px 12px 46px',
+                            borderRadius: '50px',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            outline: 'none',
+                            background: 'rgba(30,30,30, 0.75)',
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            color: 'white',
+                            fontSize: '1rem',
+                            height: '48px'
+                        }}
+                    />
                 </div>
             </div>
 
@@ -672,7 +685,7 @@ const MapView = (props) => {
             {!directionsResponse && (
                 <div style={{
                     position: 'absolute',
-                    top: '170px', // Adjusted for larger unified header
+                    top: '120px', // Adjusted for compact floating header
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 10,
