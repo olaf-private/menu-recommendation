@@ -477,10 +477,75 @@ const MapView = (props) => {
     }, [restaurants, filterCategory, sortOption, myLocation]);
 
 
+    // Search Box Logic
+    const searchInputRef = useRef(null);
+    useEffect(() => {
+        if (isLoaded && map && searchInputRef.current) {
+            const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
+                fields: ['geometry', 'name'],
+                types: ['geocode', 'establishment'] // Allow regions and specific places
+            });
+
+            autocomplete.bindTo('bounds', map);
+
+            autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) {
+                    return;
+                }
+
+                // If the place has a geometry, then present it on a map.
+                if (place.geometry.viewport) {
+                    map.fitBounds(place.geometry.viewport);
+                } else {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(15);
+                }
+                setCenter(place.geometry.location.toJSON());
+                // Optional: Auto-search after panning?
+                // Let's rely on the "Search in this Map" button which is visible.
+            });
+        }
+    }, [isLoaded, map]);
+
     if (!isLoaded) return <div className="glass-panel" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Maps...</div>;
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+            {/* Region Search Box */}
+            <div style={{
+                position: 'absolute',
+                top: '90px', // Below the main header title (approx)
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '85%',
+                maxWidth: '400px',
+                zIndex: 10
+            }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                    <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }}>
+                        <Search size={18} />
+                    </div>
+                    <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="지역 또는 맛집 검색"
+                        style={{
+                            width: '100%',
+                            padding: '12px 12px 12px 40px',
+                            borderRadius: '25px',
+                            border: 'none',
+                            outline: 'none',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                            background: 'rgba(30, 30, 30, 0.85)',
+                            backdropFilter: 'blur(8px)',
+                            color: 'white',
+                            fontSize: '0.95rem'
+                        }}
+                    />
+                </div>
+            </div>
+
             <GoogleMap
                 mapContainerStyle={containerStyle}
                 center={center}
