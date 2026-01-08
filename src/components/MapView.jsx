@@ -399,24 +399,63 @@ const MapView = (props) => {
         const primary = place.primaryType;
 
         if (types.includes('korean_restaurant') || primary === 'korean_restaurant') return 'KOREAN';
-        if (types.includes('japanese_restaurant') || primary === 'japanese_restaurant') return 'JAPANESE';
-        if (types.includes('chinese_restaurant') || primary === 'chinese_restaurant') return 'CHINESE'; // Group with Japanese? Or separate. Let's group Asian?
+        if (types.includes('japanese_restaurant') || primary === 'japanese_restaurant' ||
+            types.includes('sushi_restaurant') || primary === 'sushi_restaurant' ||
+            types.includes('ramen_restaurant') || primary === 'ramen_restaurant') return 'JAPANESE';
+
+        // Combined CHINESE and ASIAN for simplicity
+        if (types.includes('chinese_restaurant') || primary === 'chinese_restaurant' ||
+            types.includes('asian_restaurant') || primary === 'asian_restaurant' ||
+            types.includes('vietnamese_restaurant') || primary === 'vietnamese_restaurant' ||
+            types.includes('thai_restaurant') || primary === 'thai_restaurant' ||
+            types.includes('indian_restaurant') || primary === 'indian_restaurant') return 'ASIAN';
+
         if (types.includes('cafe') || types.includes('bakery') || primary === 'cafe') return 'CAFE';
         if (types.includes('bar') || primary === 'bar') return 'BAR';
-        if (types.includes('fast_food_restaurant') || types.includes('hamburger_restaurant') || types.includes('pizza_restaurant') || types.includes('steak_house')) return 'WESTERN';
+        if (types.includes('fast_food_restaurant') || types.includes('hamburger_restaurant') ||
+            types.includes('pizza_restaurant') || types.includes('steak_house') ||
+            types.includes('italian_restaurant') || types.includes('mexican_restaurant')) return 'WESTERN';
 
         return 'ETC';
     };
 
     // Filter and Sort Logic
     const processedRestaurants = React.useMemo(() => {
-        let result = [...restaurants];
+        // Pre-process: Calculate distances for ALL restaurants first
+        let result = restaurants.map(place => {
+            let distanceValue = Infinity;
+            let distanceDisplay = null;
+
+            if (myLocation && place.geometry && place.geometry.location) {
+                const lat = typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat;
+                const lng = typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng;
+
+                // Haversine calculation
+                const R = 6371;
+                const dLat = (lat - myLocation.lat) * (Math.PI / 180);
+                const dLon = (lng - myLocation.lng) * (Math.PI / 180);
+                const a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(myLocation.lat * (Math.PI / 180)) * Math.cos(lat * (Math.PI / 180)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const d = R * c; // km
+
+                distanceValue = d;
+                distanceDisplay = d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`;
+            }
+
+            return {
+                ...place,
+                distanceValue,
+                distanceDisplay
+            };
+        });
 
         // 1. Filter
         if (filterCategory !== 'ALL') {
             result = result.filter(place => {
                 const cat = getCategory(place);
-                if (filterCategory === 'ASIAN') return cat === 'JAPANESE' || cat === 'CHINESE';
                 return cat === filterCategory;
             });
         }
@@ -428,15 +467,7 @@ const MapView = (props) => {
             } else if (sortOption === 'REVIEW') {
                 return (b.user_ratings_total || 0) - (a.user_ratings_total || 0);
             } else if (sortOption === 'DISTANCE') {
-                // We need distance. If not calculated, falling back to 0 (shouldn't happen if myLocation exists)
-                if (!myLocation) return 0;
-
-                const getDist = (place) => {
-                    const lat = typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat;
-                    const lng = typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng;
-                    return Math.pow(lat - myLocation.lat, 2) + Math.pow(lng - myLocation.lng, 2); // Squared Euclidean is enough for sorting small distances
-                };
-                return getDist(a) - getDist(b);
+                return a.distanceValue - b.distanceValue;
             }
             return 0;
         });
@@ -666,7 +697,7 @@ const MapView = (props) => {
                                     { id: 'ALL', label: '전체' },
                                     { id: 'KOREAN', label: '한식' },
                                     { id: 'JAPANESE', label: '일식' },
-                                    { id: 'CHINESE_ASIAN', label: '중식/아시안' },
+                                    { id: 'ASIAN', label: '중식/아시안' },
                                     { id: 'WESTERN', label: '양식' },
                                     { id: 'CAFE', label: '카페' },
                                     { id: 'BAR', label: '술집' },
