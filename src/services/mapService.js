@@ -19,7 +19,7 @@ export const searchNearbyRestaurants = async (mapInstance, location) => {
 
     try {
         const { places } = await window.google.maps.places.Place.searchNearby({
-            fields: ['displayName', 'location', 'formattedAddress', 'photos', 'rating', 'userRatingCount', 'regularOpeningHours', 'id'],
+            fields: ['displayName', 'location', 'formattedAddress', 'photos', 'rating', 'userRatingCount', 'regularOpeningHours', 'id', 'types', 'primaryType'],
             locationRestriction: {
                 center: location,
                 radius: PLACE_RADIUS_METERS,

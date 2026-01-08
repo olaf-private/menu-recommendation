@@ -78,7 +78,26 @@ const RestaurantDetailModal = ({ place, onClose, onToggleFavorite, isFavorite })
 
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', color: 'var(--color-text-muted)' }}>
                     <MapPin size={16} style={{ marginRight: '8px' }} />
-                    <span>{place.vicinity}</span>
+                    <span style={{ marginRight: '8px', cursor: 'text' }}>{place.vicinity}</span>
+                    <button
+                        onClick={() => {
+                            if (place.vicinity) {
+                                navigator.clipboard.writeText(place.vicinity);
+                                alert("주소가 복사되었습니다.");
+                            }
+                        }}
+                        style={{
+                            background: 'none',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '4px',
+                            padding: '2px 6px',
+                            fontSize: '0.75rem',
+                            color: 'var(--color-primary)',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        복사
+                    </button>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', color: 'var(--color-text-muted)' }}>
