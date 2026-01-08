@@ -691,59 +691,82 @@ const MapView = (props) => {
                                 </button>
                             </div>
 
-                            {/* Filters */}
-                            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                            {/* Category Counts Calculation */}
+                            {(() => {
+                                const counts = {
+                                    ALL: restaurants.length,
+                                    KOREAN: 0, JAPANESE: 0, ASIAN: 0, WESTERN: 0, CAFE: 0, BAR: 0, ETC: 0
+                                };
+                                restaurants.forEach(r => {
+                                    const cat = getCategory(r);
+                                    if (counts[cat] !== undefined) counts[cat]++;
+                                });
+
+                                return (
+                                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                                        {[
+                                            { id: 'ALL', label: '전체', count: counts.ALL },
+                                            { id: 'KOREAN', label: '한식', count: counts.KOREAN },
+                                            { id: 'JAPANESE', label: '일식', count: counts.JAPANESE },
+                                            { id: 'ASIAN', label: '중식/아시안', count: counts.ASIAN },
+                                            { id: 'WESTERN', label: '양식', count: counts.WESTERN },
+                                            { id: 'CAFE', label: '카페', count: counts.CAFE },
+                                            { id: 'BAR', label: '술집', count: counts.BAR },
+                                        ].map(cat => (
+                                            <button
+                                                key={cat.id}
+                                                onClick={() => setFilterCategory(cat.id)}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '0.8rem',
+                                                    whiteSpace: 'nowrap',
+                                                    backgroundColor: filterCategory === cat.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
+                                                    color: filterCategory === cat.id ? 'white' : 'var(--color-text-muted)',
+                                                    border: '1px solid',
+                                                    borderColor: filterCategory === cat.id ? 'var(--color-primary)' : 'var(--glass-border)',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px'
+                                                }}
+                                            >
+                                                <span>{cat.label}</span>
+                                                <span style={{ fontSize: '0.7em', opacity: 0.8 }}>{cat.count}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Sort Options - Improved UI */}
+                            <div style={{ display: 'flex', gap: '8px', padding: '4px 0' }}>
                                 {[
-                                    { id: 'ALL', label: '전체' },
-                                    { id: 'KOREAN', label: '한식' },
-                                    { id: 'JAPANESE', label: '일식' },
-                                    { id: 'ASIAN', label: '중식/아시안' },
-                                    { id: 'WESTERN', label: '양식' },
-                                    { id: 'CAFE', label: '카페' },
-                                    { id: 'BAR', label: '술집' },
-                                ].map(cat => (
+                                    { id: 'DISTANCE', label: '거리순' },
+                                    { id: 'RATING', label: '별점순' },
+                                    { id: 'REVIEW', label: '리뷰 많은순' }
+                                ].map(opt => (
                                     <button
-                                        key={cat.id}
-                                        onClick={() => setFilterCategory(cat.id)}
+                                        key={opt.id}
+                                        onClick={() => setSortOption(opt.id)}
                                         style={{
-                                            padding: '6px 12px',
-                                            borderRadius: '20px',
+                                            flex: 1,
+                                            padding: '8px',
+                                            borderRadius: '8px',
                                             fontSize: '0.8rem',
-                                            whiteSpace: 'nowrap',
-                                            backgroundColor: filterCategory === cat.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
-                                            color: filterCategory === cat.id ? 'white' : 'var(--color-text-muted)',
                                             border: 'none',
+                                            backgroundColor: sortOption === opt.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                            color: sortOption === opt.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                            fontWeight: sortOption === opt.id ? 'bold' : 'normal',
                                             cursor: 'pointer',
-                                            transition: 'all 0.2s'
+                                            transition: 'all 0.2s',
+                                            textAlign: 'center'
                                         }}
                                     >
-                                        {cat.label}
+                                        {opt.label}
                                     </button>
                                 ))}
-                            </div>
-
-                            {/* Sort Options */}
-                            <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                <button
-                                    onClick={() => setSortOption('DISTANCE')}
-                                    style={{ color: sortOption === 'DISTANCE' ? 'var(--color-primary)' : 'inherit', fontWeight: sortOption === 'DISTANCE' ? 'bold' : 'normal' }}
-                                >
-                                    거리순
-                                </button>
-                                <span style={{ opacity: 0.3 }}>|</span>
-                                <button
-                                    onClick={() => setSortOption('RATING')}
-                                    style={{ color: sortOption === 'RATING' ? 'var(--color-primary)' : 'inherit', fontWeight: sortOption === 'RATING' ? 'bold' : 'normal' }}
-                                >
-                                    별점순
-                                </button>
-                                <span style={{ opacity: 0.3 }}>|</span>
-                                <button
-                                    onClick={() => setSortOption('REVIEW')}
-                                    style={{ color: sortOption === 'REVIEW' ? 'var(--color-primary)' : 'inherit', fontWeight: sortOption === 'REVIEW' ? 'bold' : 'normal' }}
-                                >
-                                    리뷰많은순
-                                </button>
                             </div>
                         </div>
 
