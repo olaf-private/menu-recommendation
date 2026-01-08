@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer, Polyline } from '@react-google-maps/api';
 import { MapPin, Navigation, Search, List, X } from 'lucide-react';
-import { searchNearbyRestaurants, calculateRoute } from '../services/mapService';
+import { searchNearbyRestaurants, calculateRoute, getPlaceDetails } from '../services/mapService';
 import RestaurantCard from './RestaurantCard';
+import RestaurantDetailModal from './RestaurantDetailModal';
 import '../styles/index.css';
 
 const containerStyle = {
@@ -90,7 +91,7 @@ const mapOptions = {
 
 const LIBRARIES = ['places'];
 
-const MapView = () => {
+const MapView = (props) => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -103,8 +104,10 @@ const MapView = () => {
     const [restaurants, setRestaurants] = useState([]);
     const [selectedPlace, setSelectedPlace] = useState(null);
     const [isListVisible, setIsListVisible] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [directionsResponse, setDirectionsResponse] = useState(null);
+    const [straightLinePath, setStraightLinePath] = useState(null);
     const [routeInfo, setRouteInfo] = useState(null);
 
     const mapRef = useRef(null);
@@ -171,16 +174,111 @@ const MapView = () => {
         }
     };
 
-    const handleMarkerClick = (place) => {
+    // When clicking a card in the list or a marker, fetch full details if needed then open modal.
+    const handleCardClick = async (place) => {
         setSelectedPlace(place);
-        setIsListVisible(true);
+
+        // If we don't have reviews or URI, fetch them to ensure modal has full info
+        if (!place.reviews || !place.googleMapsURI) {
+            try {
+                setIsLoading(true);
+                const fullDetails = await getPlaceDetails(place.place_id);
+
+                // Merge with existing place data to keep any UI state if needed, 
+                // but getPlaceDetails returns clean structure.
+                // Update the specific item in the restaurants list so cache is warm
+                setRestaurants(prev => prev.map(p =>
+                    p.place_id === place.place_id ? fullDetails : p
+                ));
+
+                setSelectedPlace(fullDetails);
+            } catch (error) {
+                console.error("Failed to fetch full details:", error);
+                // Fallback: still open modal with what we have
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        setIsModalOpen(true);
+
+        // Pan to location and then offset to make it visible above the modal (60vh height)
+        // Center is at 50%. Modal takes bottom 60%. Visible top is 40%. Center of visible is 20%.
+        // We want marker at 20% from top. Current is 50%.
+        // So we need to shift feature UP by 30% of screen.
+        // Feature UP means Map Center DOWN (positive Y).
+        // Shift amount = window.innerHeight * 0.25 (approx)
         map.panTo(place.geometry.location);
+
+        // Small delay to allow panTo to start/finish or just sequential
+        setTimeout(() => {
+            if (map) map.panBy(0, window.innerHeight * 0.2);
+        }, 100);
+    };
+
+    // handleMarkerClick removed as it is replaced by handleCardClick
+
+    const handleMapClick = async (event) => {
+        // If user clicks a POI (Point of Interest)
+        if (event.placeId) {
+            event.stop(); // Stop default info window if any
+
+            try {
+                setIsLoading(true);
+                const placeDetails = await getPlaceDetails(event.placeId);
+
+                // Add to list if not present, or replace?
+                // Better to just set as selected and ensure it's in the list logic.
+                // We'll append it to restaurants so it renders in the drawer.
+                setRestaurants(prev => {
+                    // Check if already exists to avoid duplicates
+                    const exists = prev.find(p => p.place_id === placeDetails.place_id);
+                    if (exists) return prev;
+                    return [placeDetails, ...prev];
+                });
+
+                setSelectedPlace(placeDetails);
+                setIsListVisible(true);
+                // Optionally pan to it
+                map.panTo(placeDetails.geometry.location);
+
+            } catch (error) {
+                console.error("Failed to fetch POI details:", error);
+                alert("장소 정보를 가져올 수 없습니다.");
+            } finally {
+                setIsLoading(false);
+            }
+        } else {
+            // Normal click - maybe clear selection?
+            // setSelectedPlace(null);
+        }
+    };
+
+    // Haversine Distance Formula
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; // Radius of the earth in km
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLon = (lon2 - lon1) * (Math.PI / 180);
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c; // Distance in km
+        return d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`;
     };
 
     const handleGetDirections = async (place) => {
-        if (!myLocation || !place) return;
+        if (!myLocation || !place) {
+            alert("사용자 위치를 찾을 수 없습니다.");
+            return;
+        }
 
         setIsLoading(true);
+        // Reset states
+        setDirectionsResponse(null);
+        setStraightLinePath(null);
+
         try {
             const result = await calculateRoute(myLocation, place.geometry.location);
             setDirectionsResponse(result);
@@ -194,28 +292,158 @@ const MapView = () => {
 
             setIsListVisible(false); // Hide list to show map route
         } catch (error) {
-            console.error("Directions failed:", error);
-            let errorMsg = "경로를 찾을 수 없습니다.";
-            if (error === 'ZERO_RESULTS') errorMsg = "경로를 찾을 수 없습니다 (너무 멀거나 경로 없음).";
-            else if (error === 'REQUEST_DENIED') errorMsg = "API 권한 오류입니다. (Directions API)";
+            console.warn("Directions API failed, falling back to straight line:", error);
 
-            alert(`${errorMsg}\n상세: ${error}`);
+            // Fallback: Straight Line Visualization
+            const destLat = typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat;
+            const destLng = typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng;
+
+            setStraightLinePath([
+                myLocation,
+                { lat: destLat, lng: destLng }
+            ]);
+
+            const dist = calculateDistance(myLocation.lat, myLocation.lng, destLat, destLng);
+            setRouteInfo({
+                distance: dist,
+                duration: "직선 거리"
+            });
+            setIsListVisible(false);
+
+            // Construct Google Maps Directions URL for the user to click if they want real path
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${myLocation.lat},${myLocation.lng}&destination=${destLat},${destLng}&travelmode=walking`;
+
+            // Optional: Auto-open or just notify? 
+            // The overlay now allows canceling, we can let user decide to open external app via button in Info Overlay (need to add it there)
+            // or just rely on the 'Get Directions' button in Modal.
+            // For now, satisfy 'Show it' request by showing the line.
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleCardAction = (event) => {
+    const handleCardAction = async (event) => {
         if (event.action === 'directions') {
             handleGetDirections(event.place);
+        } else if (event.action === 'checkin') {
+            if (!props.user) {
+                alert("방문 기록을 저장하려면 로그인이 필요합니다.");
+                return;
+            }
+            try {
+                const { recordVisit } = await import('../services/storageService');
+                await recordVisit(props.user.uid, event.place);
+                alert(`'${event.place.name}' 방문 확인 완료!`);
+            } catch (error) {
+                console.error("Check-in failed:", error);
+                alert("방문 기록 저장 실패");
+            }
+        }
+    };
+
+    // User Favorites State
+    const [favorites, setFavorites] = useState(new Set());
+
+    // Load Favorites
+    useEffect(() => {
+        const loadFavorites = async () => {
+            if (props.user) {
+                try {
+                    const { getFavorites } = await import('../services/storageService');
+                    const favs = await getFavorites(props.user.uid);
+                    setFavorites(new Set(favs.map(f => f.placeId)));
+                } catch (error) {
+                    console.error("Failed to load favorites", error);
+                }
+            } else {
+                setFavorites(new Set());
+            }
+        };
+        loadFavorites();
+    }, [props.user]);
+
+    const handleToggleFavorite = async (place) => {
+        if (!props.user) {
+            alert("즐겨찾기를 하려면 로그인이 필요합니다.");
+            return;
+        }
+
+        try {
+            const { toggleFavorite } = await import('../services/storageService');
+            const result = await toggleFavorite(props.user.uid, place);
+
+            setFavorites(prev => {
+                const next = new Set(prev);
+                if (result.action === 'added') next.add(place.place_id);
+                else next.delete(place.place_id);
+                return next;
+            });
+        } catch (error) {
+            console.error("Toggle favorite failed:", error);
         }
     };
 
     const clearRoute = () => {
         setDirectionsResponse(null);
+        setStraightLinePath(null);
         setRouteInfo(null);
         handleRecenter();
     };
+
+    const [filterCategory, setFilterCategory] = useState('ALL');
+    const [sortOption, setSortOption] = useState('DISTANCE'); // DISTANCE, RATING, REVIEW
+
+    // Helper to determine simplified category
+    const getCategory = (place) => {
+        const types = place.types || [];
+        const primary = place.primaryType;
+
+        if (types.includes('korean_restaurant') || primary === 'korean_restaurant') return 'KOREAN';
+        if (types.includes('japanese_restaurant') || primary === 'japanese_restaurant') return 'JAPANESE';
+        if (types.includes('chinese_restaurant') || primary === 'chinese_restaurant') return 'CHINESE'; // Group with Japanese? Or separate. Let's group Asian?
+        if (types.includes('cafe') || types.includes('bakery') || primary === 'cafe') return 'CAFE';
+        if (types.includes('bar') || primary === 'bar') return 'BAR';
+        if (types.includes('fast_food_restaurant') || types.includes('hamburger_restaurant') || types.includes('pizza_restaurant') || types.includes('steak_house')) return 'WESTERN';
+
+        return 'ETC';
+    };
+
+    // Filter and Sort Logic
+    const processedRestaurants = React.useMemo(() => {
+        let result = [...restaurants];
+
+        // 1. Filter
+        if (filterCategory !== 'ALL') {
+            result = result.filter(place => {
+                const cat = getCategory(place);
+                if (filterCategory === 'ASIAN') return cat === 'JAPANESE' || cat === 'CHINESE';
+                return cat === filterCategory;
+            });
+        }
+
+        // 2. Sort
+        result.sort((a, b) => {
+            if (sortOption === 'RATING') {
+                return (b.rating || 0) - (a.rating || 0);
+            } else if (sortOption === 'REVIEW') {
+                return (b.user_ratings_total || 0) - (a.user_ratings_total || 0);
+            } else if (sortOption === 'DISTANCE') {
+                // We need distance. If not calculated, falling back to 0 (shouldn't happen if myLocation exists)
+                if (!myLocation) return 0;
+
+                const getDist = (place) => {
+                    const lat = typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat;
+                    const lng = typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng;
+                    return Math.pow(lat - myLocation.lat, 2) + Math.pow(lng - myLocation.lng, 2); // Squared Euclidean is enough for sorting small distances
+                };
+                return getDist(a) - getDist(b);
+            }
+            return 0;
+        });
+
+        return result;
+    }, [restaurants, filterCategory, sortOption, myLocation]);
+
 
     if (!isLoaded) return <div className="glass-panel" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Maps...</div>;
 
@@ -233,6 +461,7 @@ const MapView = () => {
                         setCenter(mapRef.current.getCenter().toJSON());
                     }
                 }}
+                onClick={handleMapClick}
             >
                 {/* My Location Marker */}
                 {myLocation && (
@@ -250,12 +479,12 @@ const MapView = () => {
                     />
                 )}
 
-                {/* Restaurant Markers */}
-                {!directionsResponse && restaurants.map((place) => (
+                {/* Restaurant Markers - Show ALL or only Filtered? Usually show filtered on map too for consistency */}
+                {!directionsResponse && processedRestaurants.map((place) => (
                     <Marker
                         key={place.place_id}
                         position={place.geometry.location}
-                        onClick={() => handleMarkerClick(place)}
+                        onClick={() => handleCardClick(place)}
                         icon={{
                             path: window.google.maps.SymbolPath.CIRCLE,
                             scale: 6,
@@ -281,13 +510,34 @@ const MapView = () => {
                         }}
                     />
                 )}
+
+                {/* Straight Line Visualization Fallback */}
+                {straightLinePath && (
+                    <Polyline
+                        path={straightLinePath}
+                        options={{
+                            strokeColor: "#f59e0b",
+                            strokeOpacity: 0,
+                            strokeWeight: 0,
+                            icons: [{
+                                icon: {
+                                    path: 'M 0,-1 0,1',
+                                    strokeOpacity: 1,
+                                    scale: 4
+                                },
+                                offset: '0',
+                                repeat: '20px'
+                            }]
+                        }}
+                    />
+                )}
             </GoogleMap>
 
             {/* Route Info Overlay */}
             {routeInfo && (
                 <div className="glass-panel" style={{
                     position: 'absolute',
-                    top: '80px',
+                    top: '140px', // Moved down to avoid header overlap
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 20,
@@ -316,7 +566,7 @@ const MapView = () => {
             {!directionsResponse && (
                 <div style={{
                     position: 'absolute',
-                    top: '80px',
+                    top: '140px', // Moved down to avoid header overlap
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 10,
@@ -328,7 +578,7 @@ const MapView = () => {
                         className="btn-primary"
                         style={{ display: 'flex', alignItems: 'center', boxShadow: 'var(--shadow-lg)' }}
                     >
-                        {isLoading ? 'Searching...' : <><Search size={18} style={{ marginRight: '6px' }} /> 주변 음식점 찾기</>}
+                        {isLoading ? 'Searching...' : <><Search size={18} style={{ marginRight: '6px' }} /> 현 지도에서 검색</>}
                     </button>
                 </div>
             )}
@@ -379,49 +629,117 @@ const MapView = () => {
                 </button>
             )}
 
-            {/* Restaurant List Overlay (Drawer-like) */}
-            <div className={`glass-panel`} style={{
-                position: 'absolute',
-                bottom: '0',
-                left: '0',
-                width: '100%',
-                height: isListVisible ? '45%' : '0',
-                transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                overflowY: 'auto',
-                borderBottomLeftRadius: 0,
-                borderBottomRightRadius: 0,
-                zIndex: 20,
-                padding: isListVisible ? '1rem' : '0'
-            }}>
-                {isListVisible && (
-                    <button
-                        onClick={() => setIsListVisible(false)}
-                        style={{ position: 'absolute', top: '10px', right: '10px', color: 'var(--color-text-muted)' }}
-                    >
-                        <X size={20} />
-                    </button>
-                )}
-
-                {restaurants.length === 0 && !isLoading && (
-                    <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '2rem' }}>
-                        지도 탐색 후 '주변 음식점 찾기'를 눌러보세요.
-                    </div>
-                )}
-                {restaurants.map((place) => (
-                    <RestaurantCard
-                        key={place.place_id}
-                        place={place}
-                        isSelected={selectedPlace?.place_id === place.place_id}
-                        onClick={(e) => {
-                            // If event has action (directions), handle it, else select marker
-                            if (e?.action === 'directions') {
-                                handleCardAction(e);
-                            } else {
-                                handleMarkerClick(place);
-                            }
+            {/* Unified Sidebar (List & Detail) */}
+            <div
+                className={`sidebar-panel ${!isListVisible && !selectedPlace ? 'hidden' : ''} ${selectedPlace ? 'expanded' : ''}`}
+            >
+                {selectedPlace ? (
+                    // Detail View
+                    <RestaurantDetailModal
+                        place={selectedPlace}
+                        isFavorite={favorites.has(selectedPlace.place_id)}
+                        onToggleFavorite={handleToggleFavorite}
+                        onClose={() => {
+                            setSelectedPlace(null);
+                            // Keep list visible when going back?
+                            setIsListVisible(true);
                         }}
                     />
-                ))}
+                ) : (
+                    // List View
+                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        {/* Header / Close for List */}
+                        <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                <span className="text-gradient" style={{ fontWeight: 'bold' }}>주변 맛집 ({processedRestaurants.length})</span>
+                                <button
+                                    onClick={() => setIsListVisible(false)}
+                                    style={{ color: 'var(--color-text-muted)' }}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Filters */}
+                            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                                {[
+                                    { id: 'ALL', label: '전체' },
+                                    { id: 'KOREAN', label: '한식' },
+                                    { id: 'JAPANESE', label: '일식' },
+                                    { id: 'CHINESE_ASIAN', label: '중식/아시안' },
+                                    { id: 'WESTERN', label: '양식' },
+                                    { id: 'CAFE', label: '카페' },
+                                    { id: 'BAR', label: '술집' },
+                                ].map(cat => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setFilterCategory(cat.id)}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '20px',
+                                            fontSize: '0.8rem',
+                                            whiteSpace: 'nowrap',
+                                            backgroundColor: filterCategory === cat.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
+                                            color: filterCategory === cat.id ? 'white' : 'var(--color-text-muted)',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {cat.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Sort Options */}
+                            <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                <button
+                                    onClick={() => setSortOption('DISTANCE')}
+                                    style={{ color: sortOption === 'DISTANCE' ? 'var(--color-primary)' : 'inherit', fontWeight: sortOption === 'DISTANCE' ? 'bold' : 'normal' }}
+                                >
+                                    거리순
+                                </button>
+                                <span style={{ opacity: 0.3 }}>|</span>
+                                <button
+                                    onClick={() => setSortOption('RATING')}
+                                    style={{ color: sortOption === 'RATING' ? 'var(--color-primary)' : 'inherit', fontWeight: sortOption === 'RATING' ? 'bold' : 'normal' }}
+                                >
+                                    별점순
+                                </button>
+                                <span style={{ opacity: 0.3 }}>|</span>
+                                <button
+                                    onClick={() => setSortOption('REVIEW')}
+                                    style={{ color: sortOption === 'REVIEW' ? 'var(--color-primary)' : 'inherit', fontWeight: sortOption === 'REVIEW' ? 'bold' : 'normal' }}
+                                >
+                                    리뷰많은순
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Scrolling List */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+                            {processedRestaurants.length === 0 && !isLoading && (
+                                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '2rem' }}>
+                                    {restaurants.length === 0 ? "지도 탐색 후 '주변 음식점 찾기'를 눌러보세요." : "조건에 맞는 음식점이 없습니다."}
+                                </div>
+                            )}
+                            {processedRestaurants.map((place) => (
+                                <RestaurantCard
+                                    key={place.place_id}
+                                    place={place}
+                                    isSelected={false} // List items not highlighted as "selected" since selection transitions view
+                                    isFavorite={favorites.has(place.place_id)}
+                                    onToggleFavorite={handleToggleFavorite}
+                                    onClick={(e) => {
+                                        if (e?.action === 'directions') handleCardAction(e);
+                                        else if (e?.action === 'checkin') handleCardAction(e);
+                                        else handleCardClick(place);
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -112,3 +112,98 @@ button {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
+
+/* Unified Sidebar Panel (List & Detail) */
+.sidebar-panel {
+    /* Base Glass Styles */
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    z-index: 50;
+    /* Above map controls */
+
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+
+    /* Shadow */
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile: Bottom Sheet */
+.sidebar-panel {
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--mobile-height, 45%);
+    /* Dynamic height via variable or default */
+    max-height: 80vh;
+
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+
+    transform: translateY(0);
+}
+
+.sidebar-panel.hidden {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-panel.expanded {
+    height: 60vh;
+    /* Taller for detail view */
+    --mobile-height: 60vh;
+}
+
+/* Desktop: Left Sidebar */
+@media (min-width: 768px) {
+    .sidebar-panel {
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100% !important;
+        /* Always full height on desktop */
+        width: 400px;
+
+        border-radius: 0;
+        border-right: 1px solid var(--glass-border);
+        border-top: none;
+
+        transform: translateX(0);
+    }
+
+    .sidebar-panel.hidden {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}
+
+/* Content Transitions */
+.sidebar-content-enter {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.sidebar-content-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: all 0.3s ease;
+}
+
+.sidebar-content-exit {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.sidebar-content-exit-active {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.3s ease;
+}
