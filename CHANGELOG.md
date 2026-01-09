@@ -2,6 +2,10 @@
 
 All notable changes to the **Menu Recommendation** project will be documented in this file.
 
+## [v0.0.42] - 2026-01-09
+### Changed
+- **Version Bump**: Updated project version to v0.0.42.
+
 ## [v0.0.41] - 2026-01-09
 ### Added
 - **Business Hours Logic**: Implemented `calculateBusinessStatus` in `mapService` to determine open/closed status using `regularOpeningHours` data, overcoming API limitations.
