@@ -2,6 +2,14 @@
 
 All notable changes to the **Menu Recommendation** project will be documented in this file.
 
+## [v0.0.41] - 2026-01-09
+### Added
+- **Business Hours Logic**: Implemented `calculateBusinessStatus` in `mapService` to determine open/closed status using `regularOpeningHours` data, overcoming API limitations.
+- **Undo Delete**: Added optimistic update and undo functionality for deleting items in `MyListPage`.
+- **UI UX Improvements**: 
+    - Replaced 'Clock' icon with 'Navigation' icon in `RestaurantCard` for clarity.
+    - Added live business status indicators (Open/Closed) to restaurant cards.
+
 ## [v0.0.36] - 2026-01-08
 ### Added
 - **UI UX Improvements**: 

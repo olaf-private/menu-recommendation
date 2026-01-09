@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, MapPin, Clock, Heart } from 'lucide-react';
+import { Star, MapPin, Clock, Heart, Navigation } from 'lucide-react';
 import '../styles/index.css';
 
 const RestaurantCard = ({ place, onClick, isSelected, isFavorite, onToggleFavorite }) => {
@@ -61,6 +61,16 @@ const RestaurantCard = ({ place, onClick, isSelected, isFavorite, onToggleFavori
                     <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
                         ({place.user_ratings_total || 0})
                     </span>
+                    {place.opening_hours?.statusText && (
+                        <span style={{
+                            marginLeft: 'auto',
+                            fontSize: '0.85rem',
+                            color: place.opening_hours.isOpen ? '#4ade80' : '#f87171',
+                            fontWeight: '500'
+                        }}>
+                            {place.opening_hours.statusText}
+                        </span>
+                    )}
                 </div>
 
                 <button
@@ -110,7 +120,7 @@ const RestaurantCard = ({ place, onClick, isSelected, isFavorite, onToggleFavori
                                 padding: '0.5rem'
                             }}
                         >
-                            <Clock size={16} style={{ marginRight: '6px' }} />
+                            <Navigation size={16} style={{ marginRight: '6px' }} />
                             길찾기
                         </button>
                         <button
@@ -136,7 +146,7 @@ const RestaurantCard = ({ place, onClick, isSelected, isFavorite, onToggleFavori
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

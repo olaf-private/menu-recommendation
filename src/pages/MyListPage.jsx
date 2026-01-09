@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getFavorites, toggleFavorite } from '../services/storageService';
 import { MapPin, Heart } from 'lucide-react';
 import '../styles/index.css';
@@ -23,15 +23,54 @@ const MyListPage = ({ user }) => {
         fetchFavorites();
     }, [user]);
 
-    const handleRemove = async (place) => {
-        if (!confirm("삭제하시겠습니까?")) return;
-        try {
-            await toggleFavorite(user.uid, { place_id: place.placeId }); // Mapping needed
-            fetchFavorites(); // Reload
-        } catch (error) {
-            console.error(error);
+    const [deletedItem, setDeletedItem] = useState(null);
+    const [countdown, setCountdown] = useState(0);
+    const timerRef = useRef(null);
+
+    const handleRemove = (place) => {
+        // Optimistic update
+        const prevFavorites = [...favorites];
+        setFavorites(prev => prev.filter(f => f.id !== place.id));
+
+        // Setup Undo
+        setDeletedItem({ place, prevFavorites });
+        setCountdown(3);
+
+        // Clear existing timer if any
+        if (timerRef.current) clearTimeout(timerRef.current);
+
+        // Set timer for actual deletion
+        timerRef.current = setTimeout(async () => {
+            try {
+                // Actual DB Deletion
+                await toggleFavorite(user.uid, { place_id: place.placeId });
+                setDeletedItem(null);
+            } catch (error) {
+                console.error("Failed to delete", error);
+                // Rollback on error? Complex, but MVP just alerts.
+                alert("삭제 중 오류가 발생했습니다.");
+                setFavorites(prevFavorites);
+            }
+        }, 3000);
+    };
+
+    const handleUndo = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+        if (deletedItem) {
+            setFavorites(deletedItem.prevFavorites);
+            setDeletedItem(null);
         }
     };
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, []);
 
     if (!user) {
         return (
@@ -86,6 +125,39 @@ const MyListPage = ({ user }) => {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+            {deletedItem && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: '#333',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '50px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    zIndex: 1000,
+                    width: 'max-content'
+                }}>
+                    <span>삭제되었습니다.</span>
+                    <button
+                        onClick={handleUndo}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#60a5fa',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '1rem'
+                        }}
+                    >
+                        실행 취소
+                    </button>
                 </div>
             )}
         </div>
